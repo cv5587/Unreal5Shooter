@@ -11,14 +11,16 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 #include "OnlineSubsystem.h"
-#include "Interfaces/OnlineSessionInterface.h"
+#include "OnlineSessionSettings.h"
+
 
 DEFINE_LOG_CATEGORY(LogTemplateCharacter);
 
 //////////////////////////////////////////////////////////////////////////
 // AMenuSystemCharacter
 
-AMenuSystemCharacter::AMenuSystemCharacter()
+AMenuSystemCharacter::AMenuSystemCharacter():
+	CreateSessionCompleteDelegate(FOnCreateSessionCompleteDelegate::CreateUObject(this , &ThisClass::OnCreateSessionComplete))
 {
 	// Set size for collision capsule
 	GetCapsuleComponent()->InitCapsuleSize(42.f, 96.0f);
@@ -71,6 +73,76 @@ void AMenuSystemCharacter::BeginPlay()
 	// Call the base class  
 	Super::BeginPlay();
 }
+
+void AMenuSystemCharacter::CreateGameSession()
+{
+	//1번 누르면 부른다.
+
+	//온라인 세션이 유효한지 체크
+	if (!OnlineSessionInterface.IsValid())
+	{
+		return;
+	}	
+
+	//이미 존재하는지 기존 세션이 Null이 아닌지 체크 NULL이 아니면 파괴
+	auto ExistingSession = OnlineSessionInterface->GetNamedSession(NAME_GameSession);
+	if (ExistingSession != nullptr)
+	{
+		OnlineSessionInterface->DestroySession(NAME_GameSession);
+	}
+
+	OnlineSessionInterface->AddOnCreateSessionCompleteDelegate_Handle(CreateSessionCompleteDelegate);
+
+	//세션 설정으로 초기화 하기위해 변경
+	TSharedPtr<FOnlineSessionSettings> SessionSettings = MakeShareable(new FOnlineSessionSettings());
+	//랜 매칭 안되게 하기
+	SessionSettings->bIsLANMatch = false;
+	//몇명의 유저가 접근할지
+	SessionSettings->NumPublicConnections = 4;
+	//다른 유저도 가입가능하지?
+	SessionSettings->bAllowJoinInProgress = true;
+	//지역에 발생하는 세션 검색후 먼저 연결
+	SessionSettings->bAllowJoinViaPresence = true;
+	//세션을 주변에 광고하냐
+	SessionSettings->bShouldAdvertise = true;
+	//현재 사용하는걸 검색가능
+	SessionSettings->bUsesPresence = true;
+
+	//로컬플레이어 컨트롤러 받아온후 고유 아이디로 생성
+	const ULocalPlayer* LocalPlayer = GetWorld()->GetFirstLocalPlayerFromController();
+	OnlineSessionInterface->CreateSession(*LocalPlayer->GetPreferredUniqueNetId(), NAME_GameSession, *SessionSettings);	
+
+}
+
+void AMenuSystemCharacter::OnCreateSessionComplete(FName SessionName, bool bWasSuccessful)
+{
+
+	if (bWasSuccessful)
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Blue,
+				FString::Printf(TEXT("Create session : %s"), *SessionName.ToString())
+			);
+		}
+	}
+	else
+	{
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(
+				-1,
+				15.f,
+				FColor::Red,
+				FString(TEXT("Failed to create session!"))
+			);
+		}
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////////
 // Input
