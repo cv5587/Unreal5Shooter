@@ -86,10 +86,13 @@ protected:
 	//콜백함수
 	void OnCreateSessionComplete(FName SessionName , bool bWasSuccessful);
 	void OnFindSessionsComplete(bool bWasSuccessful);
+	//세션 참가시 이름, 타입을 콜백
+	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
 
 private:
 	FOnCreateSessionCompleteDelegate CreateSessionCompleteDelegate;
 	FOnFindSessionsCompleteDelegate FindSessionsCompleteDelegate;
 	TSharedPtr<FOnlineSessionSearch> SessionSearch;
+	FOnJoinSessionCompleteDelegate JoinSessionCompleteDelegate;
 };
 
